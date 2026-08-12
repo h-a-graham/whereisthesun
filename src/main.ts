@@ -15,7 +15,7 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import SunCalc from 'suncalc';
 import {sunSample, sunArcSegments, sunHourMarks, azimuthToCompass} from './sun';
-import {fetchGroundElevation} from './elevation';
+import {fetchGroundElevation, horizonAngleDeg} from './elevation';
 
 const TERRAIN_URL =
   'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
@@ -41,6 +41,8 @@ const ro = {
   az: document.getElementById('ro-az') as HTMLElement,
   rise: document.getElementById('ro-rise') as HTMLElement,
   set: document.getElementById('ro-set') as HTMLElement,
+  horizon: document.getElementById('ro-horizon') as HTMLElement,
+  clear: document.getElementById('ro-clear') as HTMLElement,
 };
 
 // ---- State ----
@@ -237,6 +239,26 @@ function updateReadouts(date: Date): void {
   ro.az.textContent = `${s.azimuthDeg.toFixed(0)}° ${azimuthToCompass(s.azimuthDeg)}`;
   ro.rise.textContent = isNaN(times.sunrise?.getTime()) ? '—' : `${fmtUTC(times.sunrise)} UT`;
   ro.set.textContent = isNaN(times.sunset?.getTime()) ? '—' : `${fmtUTC(times.sunset)} UT`;
+  updateHorizonReadout(s.azimuthDeg, s.altitudeDeg);
+}
+
+// Terrain-aware sun visibility: skyline angle along the sun's azimuth vs the
+// sun's altitude. Async (tile-backed); a token discards stale results when
+// the slider moves faster than tiles load.
+let horizonToken = 0;
+function updateHorizonReadout(azimuthDeg: number, sunAltitudeDeg: number): void {
+  const token = ++horizonToken;
+  const {longitude, latitude} = location;
+  void horizonAngleDeg(longitude, latitude, groundElevation + 2, azimuthDeg).then(horizon => {
+    if (token !== horizonToken || mode !== 'terrain') return;
+    ro.horizon.textContent = `${horizon >= 0 ? '+' : ''}${horizon.toFixed(1)}°`;
+    const clearance = sunAltitudeDeg - horizon;
+    const clear = clearance >= 0;
+    ro.clear.textContent = clear
+      ? `+${clearance.toFixed(1)}° clear`
+      : `${clearance.toFixed(1)}° blocked`;
+    ro.clear.className = `v ${clear ? 'clear' : 'blocked'}`;
+  });
 }
 
 // Camera moves must push a layer update pass, otherwise the terrain tileset
