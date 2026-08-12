@@ -22,11 +22,19 @@ npm run dev        # http://localhost:5183 (or vite's default port)
    the AWS `elevation-tiles-prod` terrarium tile set, imagery from Esri World
    Imagery), lit by a sun light matched to the selected date and time.
 3. **Time slider** (bottom): scrub the UTC time of day. The slider track shows
-   the computed day/twilight/night bands for the selected location. The gold
-   disc is the sun's current position; the arc with hour labels is its
-   path across the selected day; both are occluded by terrain, so if a ridge
-   hides the disc, that ridge blocks your line of sight at that time.
-4. **FACE THE SUN** turns the camera toward the sun's current azimuth.
+   the computed day/twilight/night bands for the selected location. The sun is
+   an emissive 3D sphere on a shell 150 km out (beyond the terrain extent, so
+   it has no parallax against the landscape), joined to the viewpoint by a
+   bearing ray; the arc with hour labels is its path across the selected day.
+   All of it is depth-tested, so if a ridge hides the sphere, that ridge
+   blocks your line of sight at that time.
+4. **Terrain-aware readouts**: "Terrain horizon there" is the skyline's
+   elevation angle along the sun's current azimuth, from a 30 km elevation
+   profile with curvature and refraction applied; "Sun vs skyline" is sun
+   altitude minus that angle — gold "+X° clear" or coral "−X° blocked". It
+   checks the ray to the sun's centre: treat clearances under ~0.5° as
+   marginal (the solar disc spans ±0.25°, and the DEM is ~25–30 m resolution).
+5. **FACE THE SUN** turns the camera toward the sun's current azimuth.
    **BACK TO GLOBE** returns to the globe to pick a different spot.
 
 Right-drag (or ctrl-drag) rotates the terrain camera; left-drag pans.
