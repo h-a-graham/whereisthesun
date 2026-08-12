@@ -96,20 +96,21 @@ function fmtUTC(date: Date): string {
 }
 
 // ---- Layers ----
+// One global terrain layer: the tile pyramid only fetches what the camera
+// sees, so no extent restriction is needed and the layer is location-free.
 function makeTerrainLayer(): TerrainLayer {
-  const {longitude, latitude} = location;
-  const dLng = 1.0 / Math.max(0.2, Math.cos((latitude * Math.PI) / 180));
-  const dLat = 0.7;
   return new TerrainLayer({
-    id: `terrain-${longitude.toFixed(3)}-${latitude.toFixed(3)}`,
+    id: 'terrain',
     elevationData: TERRAIN_URL,
     texture: IMAGERY_URL,
     elevationDecoder: ELEVATION_DECODER,
-    extent: [longitude - dLng, latitude - dLat, longitude + dLng, latitude + dLat],
     // Terrarium tiles top out at z15 (~5 m/px). Resolution is dynamic: the
-    // tile pyramid loads finer elevation + imagery as the camera zooms in,
-    // while the opening view still only fetches coarse tiles.
+    // tile pyramid loads finer elevation + imagery as the camera zooms in.
     maxZoom: 15,
+    // Max TIN simplification error in metres. The default (4 m) reads
+    // noticeably faceted at grazing angles; 2 m roughly quadruples triangle
+    // density and keeps ridgelines crisp.
+    meshMaxError: 2,
     operation: 'terrain+draw',
   });
 }
@@ -330,7 +331,7 @@ function enterTerrain(longitude: number, latitude: number): void {
   mode = 'terrain';
   location = {longitude, latitude};
   groundElevation = 0;
-  terrainLayer = makeTerrainLayer();
+  terrainLayer = terrainLayer ?? makeTerrainLayer();
   panel.classList.add('located');
   globeContainer.classList.add('invisible');
   deckContainer.classList.remove('invisible');
@@ -341,7 +342,9 @@ function enterTerrain(longitude: number, latitude: number): void {
     pitch: 66,
     bearing: 0,
     maxPitch: 88,
-    minZoom: 8,
+    // With no terrain extent limit, the camera may pull right out for
+    // regional context; low zooms just use coarse tiles.
+    minZoom: 4,
     // Camera may zoom past tile z15 (the dataset ceiling); tiles overscale.
     maxZoom: 18,
   });

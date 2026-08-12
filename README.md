@@ -61,9 +61,13 @@ chevrons (collapsed by default on phones).
 
 ## Notes
 
-- Terrain extent is limited to about ±1° around the chosen point and capped at
-  zoom 15 (the dataset ceiling) to keep loading fast; click a new globe point
-  to move further. Source DEM resolution is ~10 m (US), ~25–30 m (Europe and
-  most of the world), so fine detail beyond ~z13 is interpolation.
+- Terrain loads on demand wherever the camera looks (no extent limit) and is
+  capped at zoom 15, the tile set's ceiling. Source DEM resolution is ~10 m
+  (US), ~25–30 m (Europe and most of the world), so fine detail beyond ~z13
+  is interpolation. The mesh is simplified to a 2 m max error
+  (`meshMaxError`); lower it for a denser TIN at some GPU cost.
+- The AWS terrain tiles are free and keyless; if you have a Mapbox or
+  MapTiler key, their terrain-RGB tiles are smoother (hydro-flattened and
+  denoised) — swap `elevationData` and `elevationDecoder` accordingly.
 - Times are UTC; the label also shows the equivalent time in this machine's
   timezone.
