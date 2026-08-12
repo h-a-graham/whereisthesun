@@ -54,6 +54,7 @@ const ro = {
   set: document.getElementById('ro-set') as HTMLElement,
   horizon: document.getElementById('ro-horizon') as HTMLElement,
   clear: document.getElementById('ro-clear') as HTMLElement,
+  sunhours: document.getElementById('ro-sunhours') as HTMLElement,
 };
 
 // ---- State ----
@@ -176,22 +177,6 @@ function sunLayers(date: Date): Layer[] {
       getLineWidth: 1.5,
       lineWidthUnits: 'pixels',
     }),
-    new ScatterplotLayer({
-      id: 'sun-halo-outer',
-      data: [now],
-      getPosition: d => d.position,
-      getRadius: up ? 110 : 0,
-      radiusUnits: 'pixels',
-      getFillColor: [252, 210, 96, 30],
-    }),
-    new ScatterplotLayer({
-      id: 'sun-halo',
-      data: [now],
-      getPosition: d => d.position,
-      getRadius: up ? 60 : 0,
-      radiusUnits: 'pixels',
-      getFillColor: [255, 224, 120, 70],
-    }),
     new SimpleMeshLayer({
       id: 'sun-sphere',
       data: [now],
@@ -267,6 +252,36 @@ function updateReadouts(date: Date): void {
   updateHorizonReadout(s.azimuthDeg, s.altitudeDeg);
 }
 
+// Hours of direct sun at this spot for the selected day: sweep the day in
+// 10-minute steps and count samples where the sun clears the terrain skyline
+// along its azimuth. Depends only on location + date (not the slider), and
+// runs off the same cached elevation tiles as the live horizon readout.
+let sunHoursToken = 0;
+async function updateSunHours(): Promise<void> {
+  if (mode !== 'terrain') return;
+  const token = ++sunHoursToken;
+  ro.sunhours.textContent = '…';
+  const dayStart = selectedDayStartUTC();
+  const {longitude, latitude} = location;
+  const eye = groundElevation + 2;
+  let directMin = 0;
+  let daylightMin = 0;
+  for (let m = 0; m < 1440; m += 10) {
+    const t = new Date(dayStart.getTime() + m * 60000);
+    const s = sunSample(t, latitude, longitude, 1000, 0);
+    if (s.altitudeDeg <= 0) continue;
+    daylightMin += 10;
+    const horizon = await horizonAngleDeg(longitude, latitude, eye, s.azimuthDeg);
+    if (token !== sunHoursToken) return;
+    if (s.altitudeDeg - horizon >= 0) directMin += 10;
+  }
+  if (token !== sunHoursToken || mode !== 'terrain') return;
+  ro.sunhours.textContent =
+    daylightMin === 0
+      ? 'polar night'
+      : `${(directMin / 60).toFixed(1)} h of ${(daylightMin / 60).toFixed(1)} h`;
+}
+
 // Terrain-aware sun visibility: skyline angle along the sun's azimuth vs the
 // sun's altitude. Async (tile-backed); a token discards stale results when
 // the slider moves faster than tiles load.
@@ -334,7 +349,10 @@ function enterTerrain(longitude: number, latitude: number): void {
   redraw();
   void fetchGroundElevation(longitude, latitude).then(elev => {
     groundElevation = elev;
-    if (mode === 'terrain') redraw();
+    if (mode === 'terrain') {
+      redraw();
+      void updateSunHours();
+    }
   });
 }
 
@@ -461,6 +479,7 @@ slider.addEventListener('input', redraw);
 dateInput.addEventListener('change', () => {
   updateTrackGradient();
   redraw();
+  void updateSunHours();
 });
 btnFace.addEventListener('click', faceTheSun);
 btnGlobe.addEventListener('click', backToGlobe);

@@ -39,6 +39,10 @@ npm run dev        # http://localhost:5183 (or vite's default port)
    altitude minus that angle — gold "+X° clear" or coral "−X° blocked". It
    checks the ray to the sun's centre: treat clearances under ~0.5° as
    marginal (the solar disc spans ±0.25°, and the DEM is ~25–30 m resolution).
+   "Direct sun today" sweeps the selected day in 10-minute steps and reports
+   how many hours the spot gets direct sun versus its total daylight — the
+   difference is what terrain steals. Handy for gardens, campsites, and
+   solar panels.
 5. **FACE THE SUN** turns the camera toward the sun's current azimuth.
    **BACK TO GLOBE** returns to the globe to pick a different spot.
 
