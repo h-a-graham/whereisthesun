@@ -280,7 +280,8 @@ function enterTerrain(longitude: number, latitude: number): void {
     bearing: 0,
     maxPitch: 88,
     minZoom: 8,
-    maxZoom: 16.5,
+    // Camera may zoom past tile z15 (the dataset ceiling); tiles overscale.
+    maxZoom: 18,
   });
   updateTrackGradient();
   redraw();
