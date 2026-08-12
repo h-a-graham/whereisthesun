@@ -92,7 +92,10 @@ function makeTerrainLayer(): TerrainLayer {
     texture: IMAGERY_URL,
     elevationDecoder: ELEVATION_DECODER,
     extent: [longitude - dLng, latitude - dLat, longitude + dLng, latitude + dLat],
-    maxZoom: 12,
+    // Terrarium tiles top out at z15 (~5 m/px). Resolution is dynamic: the
+    // tile pyramid loads finer elevation + imagery as the camera zooms in,
+    // while the opening view still only fetches coarse tiles.
+    maxZoom: 15,
     operation: 'terrain+draw',
   });
 }
@@ -236,6 +239,19 @@ function updateReadouts(date: Date): void {
   ro.set.textContent = isNaN(times.sunset?.getTime()) ? '—' : `${fmtUTC(times.sunset)} UT`;
 }
 
+// Camera moves must push a layer update pass, otherwise the terrain tileset
+// keeps evaluating against the viewport it was created with and never loads
+// finer tiles as the user zooms in. Throttled to one redraw per frame.
+let redrawQueued = false;
+function queueRedraw(): void {
+  if (redrawQueued) return;
+  redrawQueued = true;
+  requestAnimationFrame(() => {
+    redrawQueued = false;
+    redraw();
+  });
+}
+
 function redraw(): void {
   const date = selectedDate();
   if (mode === 'terrain') {
@@ -264,7 +280,7 @@ function enterTerrain(longitude: number, latitude: number): void {
     bearing: 0,
     maxPitch: 88,
     minZoom: 8,
-    maxZoom: 15,
+    maxZoom: 16.5,
   });
   updateTrackGradient();
   redraw();
@@ -338,8 +354,59 @@ const deck = new Deck<any>({
   getCursor: ({isDragging}) => (isDragging ? 'grabbing' : 'grab'),
   onViewStateChange: ({viewState}) => {
     currentViewState = viewState;
+    if (mode === 'terrain') queueRedraw();
   },
 });
+
+// Watchdog: an exception inside a render frame kills luma's AnimationLoop
+// permanently (no try/catch around its rAF callback), which intermittently
+// freezes deck right after page load. Detect a stalled loop by watching the
+// frame counter; if it stops advancing, log the offending error and revive
+// the rAF chain. No-op while the loop is healthy.
+let lastFrameCount = -1;
+setInterval(() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d: any = deck;
+  const al = d.animationLoop;
+  if (!al || !al._running) return;
+  const frames = d._metricsCounter ?? 0;
+  if (frames !== lastFrameCount) {
+    lastFrameCount = frames;
+    return;
+  }
+  try {
+    al.redraw();
+  } catch (err) {
+    console.warn('deck render frame threw; retrying', err);
+  }
+  al._cancelAnimationFrame?.();
+  al._requestAnimationFrame?.();
+}, 400);
+
+// ---- Collapsible boxes ----
+function wireCollapse(box: HTMLElement, btn: HTMLButtonElement, label: string): void {
+  const update = () => {
+    const collapsed = box.classList.contains('collapsed');
+    btn.innerHTML = collapsed ? '&#9656;' : '&#9662;';
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    btn.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} ${label}`);
+  };
+  btn.addEventListener('click', () => {
+    box.classList.toggle('collapsed');
+    update();
+  });
+  // Phones: start collapsed so the map has room.
+  if (window.matchMedia('(max-width: 640px)').matches) {
+    box.classList.add('collapsed');
+  }
+  update();
+}
+wireCollapse(panel, document.getElementById('panel-toggle') as HTMLButtonElement, 'info panel');
+wireCollapse(
+  document.getElementById('timebar') as HTMLElement,
+  document.getElementById('timebar-toggle') as HTMLButtonElement,
+  'time controls'
+);
 
 // ---- Events ----
 slider.addEventListener('input', redraw);
@@ -362,3 +429,5 @@ updateReadouts(selectedDate());
 (window as any).__globe = globeMap;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (window as any).__face = faceTheSun;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(window as any).__cam = (vs: any) => applyCamera({...currentViewState, ...vs});

@@ -60,6 +60,21 @@
     button.primary:hover { background: rgba(242, 181, 69, 0.12); }
     button:focus-visible { outline: 2px solid var(--sun); outline-offset: 1px; }
 
+    .collapse-btn {
+      position: absolute; top: 8px; right: 8px;
+      flex: none; width: 22px; height: 22px; padding: 0;
+      font-size: 10px; line-height: 20px; text-align: center;
+      color: var(--dim); border: 1px solid var(--line);
+    }
+    .collapse-btn:hover { color: var(--sun); }
+    .panel.collapsed .hint,
+    .panel.collapsed .readouts,
+    .panel.collapsed .actions { display: none; }
+    .panel.collapsed h1 { margin-bottom: 0; }
+    .timebar.collapsed .slider-wrap,
+    .timebar.collapsed .slider-scale { display: none; }
+    .timebar.collapsed .timebar-top { margin-bottom: 0; }
+
     .timebar {
       position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
       width: min(720px, calc(100% - 32px));
@@ -106,14 +121,16 @@
       .panel { width: calc(100% - 32px); }
     }
   </style>
-  <script type="module" crossorigin src="/assets/index-DWy81pej.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-GRinvwPn.css">
+  <script type="module" crossorigin src="/whereisthesun/assets/index-dP3gHzPa.js"></script>
+  <link rel="stylesheet" crossorigin href="/whereisthesun/assets/index-GRinvwPn.css">
 </head>
 <body>
   <div id="globe-container"></div>
   <div id="deck-container" class="invisible"></div>
 
   <aside class="panel" id="panel">
+    <button class="collapse-btn" id="panel-toggle" aria-expanded="true"
+            aria-label="Collapse info panel">&#9662;</button>
     <div class="eyebrow">Solar eclipse &middot; 12 Aug 2026</div>
     <h1>Where is the sun</h1>
     <p class="hint" id="hint">
@@ -136,11 +153,14 @@
     </div>
   </aside>
 
-  <div class="timebar">
+  <div class="timebar" id="timebar">
+    <button class="collapse-btn" id="timebar-toggle" aria-expanded="true"
+            aria-label="Collapse time controls">&#9662;</button>
     <div class="timebar-top">
       <span class="time-label" id="time-label">17:45 UT</span>
       <span class="time-sub" id="time-sub"></span>
-      <input type="date" id="date-input" value="2026-08-12" />
+      <input type="date" id="date-input" value="2026-08-12"
+             style="margin-right: 26px" />
     </div>
     <div class="slider-wrap">
       <div class="track-gradient" id="track-gradient"></div>
