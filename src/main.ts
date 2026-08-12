@@ -8,9 +8,11 @@ import {
   LineLayer,
   ScatterplotLayer,
   TextLayer,
+  SimpleMeshLayer,
   type Layer,
 } from 'deck.gl';
 import {_SunLight as SunLight, TerrainController} from '@deck.gl/core';
+import {SphereGeometry} from '@luma.gl/engine';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import SunCalc from 'suncalc';
@@ -24,6 +26,9 @@ const IMAGERY_URL =
 // Terrarium encoding: elevation = R * 256 + G + B / 256 - 32768
 const ELEVATION_DECODER = {rScaler: 256, gScaler: 1, bScaler: 1 / 256, offset: -32768};
 const SUN_DISTANCE = 18000; // metres from viewpoint to the sun marker shell
+// Sphere subtending ~1.6 degrees at SUN_DISTANCE: visible but sun-like.
+const SUN_RADIUS = 250;
+const SUN_MESH = new SphereGeometry({radius: 1, nlat: 24, nlong: 32});
 
 // ---- DOM ----
 const panel = document.getElementById('panel') as HTMLElement;
@@ -139,7 +144,14 @@ function sunLayers(date: Date): Layer[] {
     }),
     new LineLayer({
       id: 'sun-ray',
-      data: [{from: [longitude, latitude, groundElevation], to: now.position}],
+      // Extends far beyond the sun sphere so it reads as an infinite bearing
+      // line from the viewpoint toward the sun.
+      data: [
+        {
+          from: [longitude, latitude, groundElevation],
+          to: sunSample(date, latitude, longitude, 120000, groundElevation).position,
+        },
+      ],
       getSourcePosition: d => d.from,
       getTargetPosition: d => d.to,
       getColor: up ? [242, 181, 69, 160] : [139, 147, 167, 90],
@@ -166,17 +178,15 @@ function sunLayers(date: Date): Layer[] {
       radiusUnits: 'pixels',
       getFillColor: [252, 210, 96, 45],
     }),
-    new ScatterplotLayer({
-      id: 'sun-now',
+    new SimpleMeshLayer({
+      id: 'sun-sphere',
       data: [now],
+      mesh: SUN_MESH,
       getPosition: d => d.position,
-      getRadius: up ? 22 : 10,
-      radiusUnits: 'pixels',
-      getFillColor: up ? [255, 224, 130, 255] : [120, 128, 148, 200],
-      stroked: up,
-      getLineColor: [255, 244, 210, 200],
-      getLineWidth: 4,
-      lineWidthUnits: 'pixels',
+      getColor: up ? [255, 224, 130, 255] : [120, 128, 148, 200],
+      sizeScale: up ? SUN_RADIUS : SUN_RADIUS * 0.5,
+      // Unlit: the sun emits light, it doesn't receive it.
+      material: false,
     }),
   ];
 }
