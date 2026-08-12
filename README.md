@@ -61,8 +61,9 @@ chevrons (collapsed by default on phones).
 
 ## Notes
 
-- Terrain loads on demand wherever the camera looks (no extent limit) and is
-  capped at zoom 15, the tile set's ceiling. Source DEM resolution is ~10 m
+- Terrain loads inside a ~2° window that recenters as you pan, so tiles load
+  wherever you roam without fetching distant off-screen geometry; zoom is
+  capped at 15, the tile set's ceiling. Source DEM resolution is ~10 m
   (US), ~25–30 m (Europe and most of the world), so fine detail beyond ~z13
   is interpolation. The mesh is simplified to a 2 m max error
   (`meshMaxError`); lower it for a denser TIN at some GPU cost.

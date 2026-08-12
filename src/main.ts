@@ -80,6 +80,7 @@ function applyCamera(viewState: any): void {
   currentViewState = viewState;
   viewEpoch += 1;
   deck.setProps({views: makeTerrainView(`view-${viewEpoch}`), initialViewState: viewState});
+  queueRedraw();
 }
 
 function selectedDayStartUTC(): Date {
@@ -96,14 +97,21 @@ function fmtUTC(date: Date): string {
 }
 
 // ---- Layers ----
-// One global terrain layer: the tile pyramid only fetches what the camera
-// sees, so no extent restriction is needed and the layer is location-free.
-function makeTerrainLayer(): TerrainLayer {
+// Terrain loads inside a ~2-degree window that slides with the camera:
+// panning recenters the extent (with hysteresis, in redraw()), so tiles load
+// wherever you roam while distant off-screen geometry is never fetched.
+let terrainCenter: {longitude: number; latitude: number} | null = null;
+
+function makeTerrainLayer(longitude: number, latitude: number): TerrainLayer {
+  const dLng = 1.0 / Math.max(0.2, Math.cos((latitude * Math.PI) / 180));
+  const dLat = 0.7;
+  terrainCenter = {longitude, latitude};
   return new TerrainLayer({
     id: 'terrain',
     elevationData: TERRAIN_URL,
     texture: IMAGERY_URL,
     elevationDecoder: ELEVATION_DECODER,
+    extent: [longitude - dLng, latitude - dLat, longitude + dLng, latitude + dLat],
     // Terrarium tiles top out at z15 (~5 m/px). Resolution is dynamic: the
     // tile pyramid loads finer elevation + imagery as the camera zooms in.
     maxZoom: 15,
@@ -318,6 +326,15 @@ function queueRedraw(): void {
 function redraw(): void {
   const date = selectedDate();
   if (mode === 'terrain') {
+    // Slide the terrain extent window when the camera has wandered far
+    // enough from its center (hysteresis avoids churn while dragging).
+    if (currentViewState && terrainCenter) {
+      const dLng = Math.abs(currentViewState.longitude - terrainCenter.longitude);
+      const dLat = Math.abs(currentViewState.latitude - terrainCenter.latitude);
+      if (dLng > 0.3 || dLat > 0.25) {
+        terrainLayer = makeTerrainLayer(currentViewState.longitude, currentViewState.latitude);
+      }
+    }
     deck.setProps({
       layers: [terrainLayer as TerrainLayer, ...sunLayers(date)],
       effects: makeEffects(date),
@@ -331,7 +348,7 @@ function enterTerrain(longitude: number, latitude: number): void {
   mode = 'terrain';
   location = {longitude, latitude};
   groundElevation = 0;
-  terrainLayer = terrainLayer ?? makeTerrainLayer();
+  terrainLayer = makeTerrainLayer(longitude, latitude);
   panel.classList.add('located');
   globeContainer.classList.add('invisible');
   deckContainer.classList.remove('invisible');
