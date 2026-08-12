@@ -1,10 +1,13 @@
 # Where Is The Sun
 
-**Totally vibe coded but hopefully usefu...**
+Terrain and sun-position explorer. Pick anywhere on Earth, set a date and
+time, and see where the sun sits relative to the landscape: rise and set
+directions, the day's arc across the sky, terrain shading, and whether a
+ridgeline blocks the sun from your spot. Built with MapLibre GL (globe
+spot-picking), deck.gl (3D terrain), AWS Terrain Tiles (terrarium encoding),
+and SunCalc.
 
-Terrain and sun-position scout for choosing an eclipse viewing spot. Built with
-MapLibre GL (globe spot-picking), deck.gl (3D terrain), AWS Terrain Tiles
-(terrarium encoding), and SunCalc.
+Live at <https://h-a-graham.github.io/whereisthesun/>
 
 ## Run
 
@@ -20,14 +23,16 @@ npm run dev        # http://localhost:5183 (or vite's default port)
    Mercator as you approach, so picking stays precise. Click your exact spot.
 2. The view drops into a 3D terrain scene at the clicked point (elevation from
    the AWS `elevation-tiles-prod` terrarium tile set, imagery from Esri World
-   Imagery), lit by a sun light matched to the selected date and time.
-3. **Time slider** (bottom): scrub the UTC time of day. The slider track shows
-   the computed day/twilight/night bands for the selected location. The sun is
-   an emissive 3D sphere on a shell 150 km out (beyond the terrain extent, so
-   it has no parallax against the landscape), joined to the viewpoint by a
-   bearing ray; the arc with hour labels is its path across the selected day.
-   All of it is depth-tested, so if a ridge hides the sphere, that ridge
-   blocks your line of sight at that time.
+   Imagery), lit by a sun light matched to the selected date and time. Terrain
+   resolution refines as you zoom, up to the tile set's z15 ceiling.
+3. **Time slider** (bottom): scrub the UTC time of day; the date picker sets
+   the day. Both default to now. The slider track shows the computed
+   day/twilight/night bands for the selected location. The sun is an emissive
+   3D sphere on a shell 150 km out (beyond the terrain extent, so it has no
+   parallax against the landscape), joined to the viewpoint by a bearing ray;
+   the arc with hour labels is its path across the selected day. All of it is
+   depth-tested, so if a ridge hides the sphere, that ridge blocks direct sun
+   at that time.
 4. **Terrain-aware readouts**: "Terrain horizon there" is the skyline's
    elevation angle along the sun's current azimuth, from a 30 km elevation
    profile with curvature and refraction applied; "Sun vs skyline" is sun
@@ -40,18 +45,21 @@ npm run dev        # http://localhost:5183 (or vite's default port)
 Right-drag (or ctrl-drag) rotates the terrain camera; left-drag pans.
 
 The panel readouts give position, ground elevation, sun altitude/azimuth, and
-sunrise/sunset (UTC) for the selected day.
+sunrise/sunset (UTC) for the selected day. Panels collapse via the corner
+chevrons (collapsed by default on phones).
 
 ## Console helpers
 
 - `__goto(lng, lat)` jumps straight to a location, e.g.
   `__goto(-4.85, 43.19)` for the Picos de Europa.
-- `__face()` triggers face-the-sun; `__deck` is the Deck instance; `__globe`
-  is the MapLibre map.
+- `__face()` triggers face-the-sun; `__cam({zoom, pitch, bearing})` moves the
+  terrain camera; `__deck` is the Deck instance; `__globe` is the MapLibre map.
 
 ## Notes
 
 - Terrain extent is limited to about ±1° around the chosen point and capped at
-  zoom 12 to keep loading fast; click a new globe point to move further.
-- Times are UTC (eclipse timings are usually published in UT); the label also
-  shows the equivalent time in this machine's timezone.
+  zoom 15 (the dataset ceiling) to keep loading fast; click a new globe point
+  to move further. Source DEM resolution is ~10 m (US), ~25–30 m (Europe and
+  most of the world), so fine detail beyond ~z13 is interpolation.
+- Times are UTC; the label also shows the equivalent time in this machine's
+  timezone.

@@ -465,6 +465,14 @@ dateInput.addEventListener('change', () => {
 btnFace.addEventListener('click', faceTheSun);
 btnGlobe.addEventListener('click', backToGlobe);
 
+// Default the controls to now (UTC), rounded to the slider's 5-minute step.
+{
+  const bootNow = new Date();
+  dateInput.value = bootNow.toISOString().slice(0, 10);
+  const minutes = bootNow.getUTCHours() * 60 + bootNow.getUTCMinutes();
+  slider.value = String(Math.min(1435, Math.round(minutes / 5) * 5));
+}
+
 updateTrackGradient();
 updateReadouts(selectedDate());
 
