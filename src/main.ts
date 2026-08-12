@@ -120,6 +120,9 @@ function makeTerrainLayer(longitude: number, latitude: number): TerrainLayer {
     // density and keeps ridgelines crisp.
     meshMaxError: 2,
     operation: 'terrain+draw',
+    // Pickable so clicks return the 3D surface point (not a sea-level
+    // unproject), letting the user re-anchor the viewpoint in-scene.
+    pickable: true,
   });
 }
 
@@ -343,11 +346,25 @@ function redraw(): void {
   updateReadouts(date);
 }
 
+// Re-anchor the analysis viewpoint: marker, arc, ray, slider gradient, and
+// all readouts recompute for the new spot. The camera is left alone.
+function setLocation(longitude: number, latitude: number): void {
+  location = {longitude, latitude};
+  groundElevation = 0;
+  updateTrackGradient();
+  redraw();
+  void fetchGroundElevation(longitude, latitude).then(elev => {
+    groundElevation = elev;
+    if (mode === 'terrain') {
+      redraw();
+      void updateSunHours();
+    }
+  });
+}
+
 // ---- Mode switching ----
 function enterTerrain(longitude: number, latitude: number): void {
   mode = 'terrain';
-  location = {longitude, latitude};
-  groundElevation = 0;
   terrainLayer = makeTerrainLayer(longitude, latitude);
   panel.classList.add('located');
   globeContainer.classList.add('invisible');
@@ -365,15 +382,7 @@ function enterTerrain(longitude: number, latitude: number): void {
     // Camera may zoom past tile z15 (the dataset ceiling); tiles overscale.
     maxZoom: 18,
   });
-  updateTrackGradient();
-  redraw();
-  void fetchGroundElevation(longitude, latitude).then(elev => {
-    groundElevation = elev;
-    if (mode === 'terrain') {
-      redraw();
-      void updateSunHours();
-    }
-  });
+  setLocation(longitude, latitude);
 }
 
 function backToGlobe(): void {
@@ -437,11 +446,30 @@ const deck = new Deck<any>({
   views: makeTerrainView('view-0'),
   initialViewState: {longitude: 0, latitude: 0, zoom: 2},
   layers: [],
-  getCursor: ({isDragging}) => (isDragging ? 'grabbing' : 'grab'),
+  getCursor: ({isDragging}) => (isDragging ? 'grabbing' : 'crosshair'),
   onViewStateChange: ({viewState}) => {
     currentViewState = viewState;
     if (mode === 'terrain') queueRedraw();
   },
+});
+
+// Local search: clicking the terrain re-anchors the viewpoint there. Plain
+// DOM events with drag suppression (deck's own onClick tap recognition has
+// proven unreliable in this setup), picking the 3D surface point directly.
+// Sky clicks pick nothing and are ignored.
+let pointerDownAt: [number, number] | null = null;
+deckContainer.addEventListener('pointerdown', e => {
+  pointerDownAt = [e.clientX, e.clientY];
+});
+deckContainer.addEventListener('pointerup', e => {
+  if (!pointerDownAt) return;
+  const moved = Math.hypot(e.clientX - pointerDownAt[0], e.clientY - pointerDownAt[1]);
+  pointerDownAt = null;
+  if (moved > 5 || mode !== 'terrain') return;
+  const info = deck.pickObject({x: e.clientX, y: e.clientY});
+  if (info?.layer && info.coordinate) {
+    setLocation(info.coordinate[0], info.coordinate[1]);
+  }
 });
 
 // Watchdog: an exception inside a render frame kills luma's AnimationLoop

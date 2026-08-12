@@ -43,7 +43,11 @@ npm run dev        # http://localhost:5183 (or vite's default port)
    how many hours the spot gets direct sun versus its total daylight — the
    difference is what terrain steals. Handy for gardens, campsites, and
    solar panels.
-5. **FACE THE SUN** turns the camera toward the sun's current azimuth.
+5. **Click the terrain** to move the viewpoint for a local search: the
+   marker, sun arc, and every stat re-anchor to the clicked surface point
+   while the camera stays put. Drags pan as usual; only a stationary click
+   relocates.
+6. **FACE THE SUN** turns the camera toward the sun's current azimuth.
    **BACK TO GLOBE** returns to the globe to pick a different spot.
 
 Right-drag (or ctrl-drag) rotates the terrain camera; left-drag pans.
