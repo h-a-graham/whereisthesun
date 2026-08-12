@@ -25,9 +25,12 @@ const IMAGERY_URL =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 // Terrarium encoding: elevation = R * 256 + G + B / 256 - 32768
 const ELEVATION_DECODER = {rScaler: 256, gScaler: 1, bScaler: 1 / 256, offset: -32768};
-const SUN_DISTANCE = 18000; // metres from viewpoint to the sun marker shell
-// Sphere subtending ~1.6 degrees at SUN_DISTANCE: visible but sun-like.
-const SUN_RADIUS = 250;
+// The sun shell sits beyond the terrain tile extent (~±100 km), so it has no
+// parallax against the landscape and reads as celestial, not scenery.
+const SUN_DISTANCE = 150000;
+// Sphere subtending ~2 degrees at SUN_DISTANCE: larger than life, unmistakably
+// the sun. (Astronomically true would be ~700 m, invisible at this distance.)
+const SUN_RADIUS = 2600;
 const SUN_MESH = new SphereGeometry({radius: 1, nlat: 24, nlong: 32});
 
 // ---- DOM ----
@@ -149,7 +152,7 @@ function sunLayers(date: Date): Layer[] {
       data: [
         {
           from: [longitude, latitude, groundElevation],
-          to: sunSample(date, latitude, longitude, 120000, groundElevation).position,
+          to: sunSample(date, latitude, longitude, 450000, groundElevation).position,
         },
       ],
       getSourcePosition: d => d.from,
@@ -171,22 +174,31 @@ function sunLayers(date: Date): Layer[] {
       lineWidthUnits: 'pixels',
     }),
     new ScatterplotLayer({
+      id: 'sun-halo-outer',
+      data: [now],
+      getPosition: d => d.position,
+      getRadius: up ? 110 : 0,
+      radiusUnits: 'pixels',
+      getFillColor: [252, 210, 96, 30],
+    }),
+    new ScatterplotLayer({
       id: 'sun-halo',
       data: [now],
       getPosition: d => d.position,
-      getRadius: up ? 44 : 0,
+      getRadius: up ? 60 : 0,
       radiusUnits: 'pixels',
-      getFillColor: [252, 210, 96, 45],
+      getFillColor: [255, 224, 120, 70],
     }),
     new SimpleMeshLayer({
       id: 'sun-sphere',
       data: [now],
       mesh: SUN_MESH,
       getPosition: d => d.position,
-      getColor: up ? [255, 224, 130, 255] : [120, 128, 148, 200],
+      getColor: up ? [255, 248, 210, 255] : [120, 128, 148, 200],
       sizeScale: up ? SUN_RADIUS : SUN_RADIUS * 0.5,
-      // Unlit: the sun emits light, it doesn't receive it.
-      material: false,
+      // Emissive: high ambient, no diffuse/specular, so the sphere stays at
+      // full brightness regardless of scene lighting (the sun emits light).
+      material: {ambient: 3.0, diffuse: 0, shininess: 1, specularColor: [0, 0, 0]},
     }),
   ];
 }
