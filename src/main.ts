@@ -28,6 +28,9 @@ const ELEVATION_DECODER = {rScaler: 256, gScaler: 1, bScaler: 1 / 256, offset: -
 // The sun shell sits beyond the terrain tile extent (~±100 km), so it has no
 // parallax against the landscape and reads as celestial, not scenery.
 const SUN_DISTANCE = 150000;
+// The day-arc and its hour labels stay on a near shell so they frame the
+// landscape instead of shrinking into the sky.
+const ARC_DISTANCE = 18000;
 // Sphere subtending ~2 degrees at SUN_DISTANCE: larger than life, unmistakably
 // the sun. (Astronomically true would be ~700 m, invisible at this distance.)
 const SUN_RADIUS = 2600;
@@ -114,8 +117,8 @@ function sunLayers(date: Date): Layer[] {
   const {longitude, latitude} = location;
   const dayStart = selectedDayStartUTC();
   const now = sunSample(date, latitude, longitude, SUN_DISTANCE, groundElevation);
-  const arcs = sunArcSegments(dayStart, latitude, longitude, SUN_DISTANCE, groundElevation);
-  const marks = sunHourMarks(dayStart, latitude, longitude, SUN_DISTANCE, groundElevation);
+  const arcs = sunArcSegments(dayStart, latitude, longitude, ARC_DISTANCE, groundElevation);
+  const marks = sunHourMarks(dayStart, latitude, longitude, ARC_DISTANCE, groundElevation);
   const up = now.altitudeDeg > 0;
 
   return [
